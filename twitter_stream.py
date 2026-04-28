@@ -11,17 +11,7 @@ from functools import wraps
 def auth(filename="~/.twitter-keys.yaml"):
     def inner_function(func):
         @wraps(func)
-        def wrapper(args, **kwargs):
-            try:
-                with open(os.path.expanduser(filename)) as credentials:
-                    credentials = yaml.safe_load(credentials)["keys"]
-            except (FileNotFoundError, KeyError) as exception:
-                raise exception
-            else:
-                kwargs["auth"] = credentials
-            return func(args, **kwargs)
-
-        return wrapper
+        pass
 
     return inner_function
 
@@ -49,73 +39,13 @@ class API:
         params: dict = None,
         **kwargs,
     ) -> json:
-        try:
-            with requests.Session() as r:
-                response = r.request(
-                    url="/".join(
-                        [
-                            self._protocol,
-                            self._host,
-                            self._version,
-                            self._product,
-                            endpoint,
-                        ]
-                    ),
-                    method=method,
-                    headers={
-                        "Content-type": "application/json",
-                        "Authorization": f"Bearer {kwargs['auth']['bearer_token']}",
-                    },
-                    json=data,
-                    stream=stream,
-                    params=params,
-                )
-                return response
-        except Exception as e:
-            raise e
+        pass
 
     def _query(self) -> dict:
-        self._params = {}
-        try:
-            for v in self.__class__.__dict__:
-                if not callable(getattr(self, v)) and not v.startswith("__"):
-                    vk = v
-                    if v not in self._exclude:
-                        vk = v.replace("_", ".")
-                    self._params[vk]= ",".join(self.__class__.__dict__[v])
-            return self._params
-        except Exception as e:
-            raise e
+        pass
 
     def connect(self) -> dict:
-        try:
-            if self._has_params:
-                self._params = self._query()
-
-            data = None
-
-            while True:
-                response = self.api(
-                    method="GET",
-                    endpoint=self._endpoint,
-                    stream=self._stream,
-                    params=self._params,
-                )
-                response.raise_for_status()
-                for response_lines in response.iter_lines():
-                    # Twitter streaming API will send an empty line At least every 20 seconds to keep the connection open
-                    if len(response_lines) == 0:
-                        continue
-
-                    data = json.loads(response_lines)
-                    yield data
-
-                if not self._pagination:
-                    break
-                self._params["next_token"] = data["meta"]["next_token"]
-
-        except Exception as e:
-            raise e
+        pass
 
 
 class FilteredStream(API):
@@ -149,14 +79,14 @@ class FilteredStream(API):
         }
         stream.add_rule(data=rules)
         """
-        return self.api(method="POST", endpoint="search/stream/rules", data=data).json()
+        pass
 
     def get_rules(self) -> json:
         """Retrieve your stream's rules
         /2/tweets/search/stream/rules
         :return: json
         """
-        return self.api(method="GET", endpoint="search/stream/rules").json()
+        pass
 
     def delete_rule(self, data: dict):
         """Add or Remove upto 25 rules.
@@ -177,16 +107,11 @@ class FilteredStream(API):
             }
         }
         """
-        return self.api(method="POST", endpoint="search/stream/rules", data=data).json()
+        pass
 
     def delete_all_rules(self) -> json:
         """Deletes all your rules automatically"""
-        try:
-            rules = self.get_rules()
-            ids = list(map(lambda rule: rule["id"], rules["data"]))
-            return self.delete_rule({"delete": {"ids": ids}})
-        except Exception as e:
-            pass
+        pass
 
 
 class SampledStream(API):
@@ -269,16 +194,7 @@ class TweetLookUp(API):
 
     @auth()
     def get(self, **kwargs) -> json:
-        response = requests.request(
-            method="GET",
-            url="https://api.twitter.com/2/tweets",
-            params=self._query(),
-            headers={
-                "Content-type": "application/json",
-                "Authorization": f"Bearer {kwargs['auth']['bearer_token']}",
-            },
-        )
-        return response.json()
+        pass
 
 
 class UserLookUp(API):
@@ -287,23 +203,7 @@ class UserLookUp(API):
     """
 
     def _query(self) -> dict:
-        try:
-            _params: dict = {}
-            _exclude: list = ["max_results"]
-            for v in self.__class__.__dict__:
-                if v in _exclude:
-                    _params.update({v: ",".join(self.__class__.__dict__[v])})
-                if (
-                    not callable(getattr(self, v))
-                    and not v.startswith("__")
-                    and v not in _exclude
-                ):
-                    _params.update(
-                        {v.replace("_", "."): ",".join(self.__class__.__dict__[v])}
-                    )
-        except Exception as e:
-            raise e
-        return _params
+        pass
 
     @auth()
     def get(
@@ -312,20 +212,12 @@ class UserLookUp(API):
         query_params=True,
         **kwargs,
     ) -> json:
-        return requests.request(
-            method="GET",
-            url=endpoint,
-            params=self._query() if query_params else None,
-            headers={
-                "Content-type": "application/json",
-                "Authorization": f"Bearer {kwargs['auth']['bearer_token']}",
-            },
-        ).json()
+        pass
 
     def get_by_usernames(
         self, endpoint: str = "https://api.twitter.com/2/users/by", query_params=True
     ) -> json:
-        return self.get(endpoint=endpoint, query_params=query_params)
+        pass
 
     def get_details_by_username(
         self,
@@ -333,36 +225,11 @@ class UserLookUp(API):
         endpoint: str = "https://api.twitter.com/2/users/by/username",
         query_params=True,
     ):
-        endpoint = endpoint + "/" + data
-        return self.get(endpoint=endpoint, query_params=query_params)
+        pass
 
     @auth()
     def followers(self, username, **kwargs):
-        try:
-            user_id = self.get_details_by_username(username, query_params=False)[
-                "data"
-            ]["id"]
-            params = self._query()
-            while True:
-                data = requests.get(
-                    url=f"https://api.twitter.com/2/users/{user_id}/followers",
-                    params=params,
-                    headers={
-                        "Content-type": "application/json",
-                        "Authorization": f"Bearer {kwargs['auth']['bearer_token']}",
-                    },
-                )
-                data.raise_for_status()
-                for response_lines in data.iter_lines():
-                    data = json.loads(response_lines)
-                    yield data
-
-                params["pagination_token"] = data["meta"]["next_token"]
-
-        except KeyError as k:
-            pass
-        except Exception as e:
-            raise e
+        pass
 
 
 def hide_replies(tweet: str, hidden: dict) -> json:
