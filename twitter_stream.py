@@ -11,8 +11,9 @@ from functools import wraps
 def auth(filename="~/.twitter-keys.yaml"):
     def inner_function(func):
         @wraps(func)
-        pass
-
+        def wrapper(*args, **kwargs):
+            pass
+        return wrapper
     return inner_function
 
 
